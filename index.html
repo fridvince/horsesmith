@@ -2,41 +2,96 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Sphere Test</title>
+  <title>Planet City</title>
   <style>
     body { margin: 0; overflow: hidden; }
     canvas { display: block; }
   </style>
 </head>
 <body>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-  <script>
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x202020);
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x202030);
 
-    const camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
-    camera.position.z = 50;
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
 
-    const renderer = new THREE.WebGLRenderer();
+  // свет
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(20, 20, 20);
+  scene.add(light);
+  scene.add(new THREE.AmbientLight(0x555555));
+
+  // сама планета
+  const planetGeometry = new THREE.SphereGeometry(20, 64, 64);
+  const planetMaterial = new THREE.MeshStandardMaterial({ color: 0x55aaff });
+  const planet = new THREE.Mesh(planetGeometry, planetMaterial);
+  scene.add(planet);
+
+  // добавим "домики" на поверхность
+  const houseGeometry = new THREE.BoxGeometry(2, 2, 2);
+  const houseMaterial = new THREE.MeshStandardMaterial({ color: 0xffaa00 });
+
+  function addHouse(lat, lon) {
+    const radius = 21; // чуть выше поверхности
+    const x = radius * Math.sin(lat) * Math.cos(lon);
+    const y = radius * Math.cos(lat);
+    const z = radius * Math.sin(lat) * Math.sin(lon);
+    const house = new THREE.Mesh(houseGeometry, houseMaterial);
+    house.position.set(x, y, z);
+    // повернём домик "вверх ногами" правильно по нормали
+    house.lookAt(0, 0, 0);
+    scene.add(house);
+  }
+
+  // несколько домов вокруг
+  addHouse(Math.PI/3, 0);
+  addHouse(Math.PI/2.2, 1);
+  addHouse(Math.PI/2.5, 2);
+  addHouse(Math.PI/1.8, -1);
+
+  // камера (игрок) на поверхности
+  let radius = 22;
+  let lat = Math.PI/2;
+  let lon = 0;
+
+  function updateCameraPosition() {
+    const x = radius * Math.sin(lat) * Math.cos(lon);
+    const y = radius * Math.cos(lat);
+    const z = radius * Math.sin(lat) * Math.sin(lon);
+    camera.position.set(x, y, z);
+    camera.lookAt(0, 0, 0);
+  }
+
+  // управление
+  const keys = {};
+  document.addEventListener('keydown', e => keys[e.code] = true);
+  document.addEventListener('keyup', e => keys[e.code] = false);
+
+  function move() {
+    const speed = 0.02;
+    if (keys['KeyW'] || keys['ArrowUp']) lat -= speed;
+    if (keys['KeyS'] || keys['ArrowDown']) lat += speed;
+    if (keys['KeyA'] || keys['ArrowLeft']) lon -= speed;
+    if (keys['KeyD'] || keys['ArrowRight']) lon += speed;
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+    move();
+    updateCameraPosition();
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
-
-    const geometry = new THREE.SphereGeometry(20, 32, 32);
-    const material = new THREE.MeshBasicMaterial({ color: 0x55aaff, wireframe: false });
-    const sphere = new THREE.Mesh(geometry, material);
-    scene.add(sphere);
-
-    function animate() {
-      requestAnimationFrame(animate);
-      sphere.rotation.y += 0.01;
-      renderer.render(scene, camera);
-    }
-    animate();
-  </script>
+  });
+</script>
 </body>
 </html>
