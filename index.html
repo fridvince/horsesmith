@@ -35,7 +35,7 @@ const planet = new THREE.Mesh(
 scene.add(planet);
 
 // houses
-const houseGeometry = new THREE.BoxGeometry(0.15,0.15,0.15); // smaller for scale
+const houseGeometry = new THREE.BoxGeometry(0.15,0.15,0.15);
 const houseMaterials = [
     new THREE.MeshStandardMaterial({ color: 0xffaa00 }),
     new THREE.MeshStandardMaterial({ color: 0xaa44ff }),
@@ -60,7 +60,7 @@ addHouse(Math.PI/2.5,2,houseMaterials[2]);
 addHouse(Math.PI/1.8,-1,houseMaterials[0]);
 
 // camera parameters
-let radius = planetRadius + 2.5; // closer to surface
+let radius = planetRadius + 2.5; // distance from planet
 let keys = {};
 
 // keyboard input
@@ -70,7 +70,7 @@ document.addEventListener('keyup', e => keys[e.code] = false);
 // mouse rotation
 let mouseDown = false;
 let prevX = 0, prevY = 0;
-let yaw = 0, pitch = -0; // look slightly down initially
+let yaw = 0, pitch = 0; // initial rotation
 
 document.addEventListener('mousedown', e => { mouseDown=true; prevX=e.clientX; prevY=e.clientY; });
 document.addEventListener('mouseup', e => mouseDown=false);
@@ -86,17 +86,14 @@ document.addEventListener('mousemove', e => {
 
 // move function
 function move() {
-    const gravity = camera.position.clone().normalize(); // vector from center
+    const gravity = camera.position.clone().normalize(); // vector to center
 
-    // tangent vectors
+    // forward tangent vector
     const forward = new THREE.Vector3();
-    forward.set(
-        -Math.sin(pitch) * Math.sin(yaw),
-        Math.cos(pitch),
-        -Math.sin(pitch) * Math.cos(yaw)
-    );
+    camera.getWorldDirection(forward);
     forward.projectOnPlane(gravity).normalize();
 
+    // right vector
     const right = new THREE.Vector3().crossVectors(forward, gravity).normalize();
     const speed = 0.02;
 
@@ -105,13 +102,16 @@ function move() {
     if(keys['KeyA'] || keys['ArrowLeft']) camera.position.addScaledVector(right, -speed);
     if(keys['KeyD'] || keys['ArrowRight']) camera.position.addScaledVector(right, speed);
 
-    camera.position.setLength(radius); // stick to planet
+    // keep on planet surface
+    camera.position.setLength(radius);
     camera.up.copy(gravity);
 
-    // calculate look direction
-    let lookDir = new THREE.Vector3(0,0,-1);
-    lookDir.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
-    lookDir.applyAxisAngle(right, pitch);
+    // mouse look with quaternions
+    const yawQuat = new THREE.Quaternion().setFromAxisAngle(gravity, yaw);
+    const pitchQuat = new THREE.Quaternion().setFromAxisAngle(right, pitch);
+    const totalQuat = new THREE.Quaternion().multiplyQuaternions(yawQuat, pitchQuat);
+
+    const lookDir = new THREE.Vector3(0,0,-1).applyQuaternion(totalQuat);
     camera.lookAt(camera.position.clone().add(lookDir));
 }
 
