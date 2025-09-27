@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Planet City</title>
+  <title>Planet City Walk</title>
   <style>
     body { margin: 0; overflow: hidden; }
     canvas { display: block; }
@@ -19,72 +19,79 @@
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // свет
   const light = new THREE.DirectionalLight(0xffffff, 1);
   light.position.set(20, 20, 20);
   scene.add(light);
   scene.add(new THREE.AmbientLight(0x555555));
 
-  // сама планета
-  const planetGeometry = new THREE.SphereGeometry(20, 64, 64);
+  const planetRadius = 20;
+  const planetGeometry = new THREE.SphereGeometry(planetRadius, 64, 64);
   const planetMaterial = new THREE.MeshStandardMaterial({ color: 0x55aaff });
   const planet = new THREE.Mesh(planetGeometry, planetMaterial);
   scene.add(planet);
 
-  // добавим "домики" на поверхность
   const houseGeometry = new THREE.BoxGeometry(2, 2, 2);
-  const houseMaterial = new THREE.MeshStandardMaterial({ color: 0xffaa00 });
+  const houseMaterials = [
+    new THREE.MeshStandardMaterial({ color: 0xffaa00 }),
+    new THREE.MeshStandardMaterial({ color: 0xaa44ff }),
+    new THREE.MeshStandardMaterial({ color: 0x44ff88 })
+  ];
 
-  function addHouse(lat, lon) {
-    const radius = 21; // чуть выше поверхности
+  function addHouse(lat, lon, material) {
+    const radius = planetRadius + 1;
     const x = radius * Math.sin(lat) * Math.cos(lon);
     const y = radius * Math.cos(lat);
     const z = radius * Math.sin(lat) * Math.sin(lon);
-    const house = new THREE.Mesh(houseGeometry, houseMaterial);
+
+    const house = new THREE.Mesh(houseGeometry, material);
     house.position.set(x, y, z);
-    // повернём домик "вверх ногами" правильно по нормали
     house.lookAt(0, 0, 0);
     scene.add(house);
   }
 
-  // несколько домов вокруг
-  addHouse(Math.PI/3, 0);
-  addHouse(Math.PI/2.2, 1);
-  addHouse(Math.PI/2.5, 2);
-  addHouse(Math.PI/1.8, -1);
+  addHouse(Math.PI/3, 0, houseMaterials[0]);
+  addHouse(Math.PI/2.2, 1, houseMaterials[1]);
+  addHouse(Math.PI/2.5, 2, houseMaterials[2]);
+  addHouse(Math.PI/1.8, -1, houseMaterials[0]);
+  addHouse(Math.PI/2.7, -2, houseMaterials[1]);
 
-  // камера (игрок) на поверхности
-  let radius = 22;
-  let lat = Math.PI/2;
+  let radius = planetRadius + 2; 
+  let lat = Math.PI/2; 
   let lon = 0;
 
-  function updateCameraPosition() {
-    const x = radius * Math.sin(lat) * Math.cos(lon);
-    const y = radius * Math.cos(lat);
-    const z = radius * Math.sin(lat) * Math.sin(lon);
-    camera.position.set(x, y, z);
-    camera.lookAt(0, 0, 0);
-  }
-
-  // управление
   const keys = {};
   document.addEventListener('keydown', e => keys[e.code] = true);
   document.addEventListener('keyup', e => keys[e.code] = false);
 
   function move() {
     const speed = 0.02;
-    if (keys['KeyW'] || keys['ArrowUp']) lat -= speed;
-    if (keys['KeyS'] || keys['ArrowDown']) lat += speed;
-    if (keys['KeyA'] || keys['ArrowLeft']) lon -= speed;
-    if (keys['KeyD'] || keys['ArrowRight']) lon += speed;
+
+    const gravity = new THREE.Vector3().copy(camera.position).normalize();
+
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    forward.projectOnPlane(gravity).normalize();
+
+    const right = new THREE.Vector3().crossVectors(forward, gravity).normalize();
+
+    if (keys['KeyW'] || keys['ArrowUp']) camera.position.addScaledVector(forward, speed);
+    if (keys['KeyS'] || keys['ArrowDown']) camera.position.addScaledVector(forward, -speed);
+    if (keys['KeyA'] || keys['ArrowLeft']) camera.position.addScaledVector(right, -speed);
+    if (keys['KeyD'] || keys['ArrowRight']) camera.position.addScaledVector(right, speed);
+
+    camera.position.setLength(radius);
+
+    camera.up.copy(gravity);
+
+    camera.lookAt(camera.position.clone().add(forward));
   }
 
   function animate() {
     requestAnimationFrame(animate);
     move();
-    updateCameraPosition();
     renderer.render(scene, camera);
   }
+
   animate();
 
   window.addEventListener('resize', () => {
