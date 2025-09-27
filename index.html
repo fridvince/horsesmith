@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Mini Planet Third-Person</title>
+<title>Mini Planet Surface Walk</title>
 <style>
   body { margin: 0; overflow: hidden; }
   canvas { display: block; cursor: grab; }
@@ -11,7 +11,6 @@
 <body>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
-// SCENE
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202030);
 
@@ -66,13 +65,17 @@ const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+// SPHERICAL POSITION
+let theta = Math.PI/2; // от северного полюса
+let phi = 0; // долгота
+const charRadius = planetRadius + 0.5;
+
 // CONTROLS
 let keys = {};
 document.addEventListener('keydown', e => keys[e.code] = true);
 document.addEventListener('keyup', e => keys[e.code] = false);
 
-let mouseDown = false;
-let prevX = 0, prevY = 0;
+let mouseDown = false, prevX=0, prevY=0;
 let yaw = 0, pitch = 0;
 document.addEventListener('mousedown', e => { mouseDown=true; prevX=e.clientX; prevY=e.clientY; });
 document.addEventListener('mouseup', e => mouseDown=false);
@@ -86,32 +89,52 @@ document.addEventListener('mousemove', e => {
   prevX=e.clientX; prevY=e.clientY;
 });
 
-// CHARACTER POSITION
-let charRadius = planetRadius + 0.5;
-
-// MOVE FUNCTION
+// MOVE FUNCTION (по сфере)
 function move() {
-  const gravity = char.position.clone().normalize();
-  const forward = new THREE.Vector3();
-  char.getWorldDirection(forward);
-  forward.projectOnPlane(gravity).normalize();
-
-  const right = new THREE.Vector3().crossVectors(forward, gravity).normalize();
   const speed = 0.02;
+  // пересчитываем движение по углам
+  let deltaTheta = 0, deltaPhi = 0;
 
-  if(keys['KeyW'] || keys['ArrowUp']) char.position.addScaledVector(forward, speed);
-  if(keys['KeyS'] || keys['ArrowDown']) char.position.addScaledVector(forward, -speed);
-  if(keys['KeyA'] || keys['ArrowLeft']) char.position.addScaledVector(right, -speed);
-  if(keys['KeyD'] || keys['ArrowRight']) char.position.addScaledVector(right, speed);
+  const forward = new THREE.Vector3(
+    Math.sin(theta)*Math.cos(phi),
+    Math.cos(theta),
+    Math.sin(theta)*Math.sin(phi)
+  );
 
-  char.position.setLength(charRadius);
-  char.up.copy(gravity);
+  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0,1,0)).normalize();
+
+  if(keys['KeyW'] || keys['ArrowUp']) {
+    deltaTheta -= speed * Math.cos(pitch);
+    deltaPhi   -= speed * Math.sin(yaw);
+  }
+  if(keys['KeyS'] || keys['ArrowDown']) {
+    deltaTheta += speed * Math.cos(pitch);
+    deltaPhi   += speed * Math.sin(yaw);
+  }
+  if(keys['KeyA'] || keys['ArrowLeft']) {
+    deltaPhi -= speed;
+  }
+  if(keys['KeyD'] || keys['ArrowRight']) {
+    deltaPhi += speed;
+  }
+
+  theta += deltaTheta;
+  phi += deltaPhi;
+
+  // позиция персонажа
+  const x = charRadius * Math.sin(theta) * Math.cos(phi);
+  const y = charRadius * Math.cos(theta);
+  const z = charRadius * Math.sin(theta) * Math.sin(phi);
+  char.position.set(x,y,z);
+  char.lookAt(0,0,0);
 
   // CAMERA third-person
-  const camOffset = new THREE.Vector3(0,0.5,1.2);
+  const gravity = char.position.clone().normalize();
+  const camOffset = new THREE.Vector3(0,0.5,1.2); // над спиной и чуть позади
   const yawQuat = new THREE.Quaternion().setFromAxisAngle(gravity, yaw);
-  const rightQuat = new THREE.Quaternion().setFromAxisAngle(right, pitch);
-  const totalQuat = new THREE.Quaternion().multiplyQuaternions(yawQuat, rightQuat);
+  const rightVec = new THREE.Vector3().crossVectors(camOffset, gravity).normalize();
+  const pitchQuat = new THREE.Quaternion().setFromAxisAngle(rightVec, pitch);
+  const totalQuat = new THREE.Quaternion().multiplyQuaternions(yawQuat, pitchQuat);
   camOffset.applyQuaternion(totalQuat);
 
   camera.position.copy(char.position.clone().add(camOffset));
