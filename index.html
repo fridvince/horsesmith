@@ -19,21 +19,18 @@ const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// lights
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(10,10,10);
 scene.add(light);
 scene.add(new THREE.AmbientLight(0x555555));
 
-// small planet
-const planetRadius = 2;
+const planetRadius = 4;
 const planet = new THREE.Mesh(
     new THREE.SphereGeometry(planetRadius, 32, 32),
     new THREE.MeshStandardMaterial({ color: 0x55aaff })
 );
 scene.add(planet);
 
-// mini houses
 const houseGeometry = new THREE.BoxGeometry(0.2,0.2,0.2);
 const houseMaterials = [
     new THREE.MeshStandardMaterial({ color: 0xffaa00 }),
@@ -57,62 +54,51 @@ addHouse(Math.PI/2.2,1,houseMaterials[1]);
 addHouse(Math.PI/2.5,2,houseMaterials[2]);
 addHouse(Math.PI/1.8,-1,houseMaterials[0]);
 
-// camera on surface
-let radius = planetRadius + 4; // zoom out a bit
+let radius = planetRadius + 0.2;
 let lat = Math.PI/2;
 let lon = 0;
 
-// keys
 const keys = {};
 document.addEventListener('keydown', e => keys[e.code] = true);
 document.addEventListener('keyup', e => keys[e.code] = false);
 
-// optional: mouse rotation around player
 let mouseDown = false;
 let prevX = 0, prevY = 0;
-let yaw = 0, pitch = -0.3; // pitch negative to look slightly down
+let yaw = 0, pitch = -0,5;
 
-document.addEventListener('mousedown', e => { mouseDown=true; prevX=e.clientX; prevY=e.clientY; });
+document.addEventListener('mousedown', e => { mouseDown = true; prevX=e.clientX; prevY=e.clientY; });
 document.addEventListener('mouseup', e => mouseDown=false);
 document.addEventListener('mousemove', e => {
     if(!mouseDown) return;
-    const dx = (e.clientX-prevX)/200;
-    const dy = (e.clientY-prevY)/200;
+    const dx = (e.clientX - prevX)/200;
+    const dy = (e.clientY - prevY)/200;
     yaw -= dx;
     pitch -= dy;
     pitch = Math.max(-Math.PI/2+0.01, Math.min(Math.PI/2-0.01, pitch));
     prevX=e.clientX; prevY=e.clientY;
 });
 
-// move function
 function move() {
     const gravity = camera.position.clone().normalize();
-
-    // forward & right vectors
     const forward = new THREE.Vector3();
     camera.getWorldDirection(forward);
     forward.projectOnPlane(gravity).normalize();
-
     const right = new THREE.Vector3().crossVectors(forward, gravity).normalize();
-    const speed = 0.02;
-
+    const speed = 0.1;
     if(keys['KeyW'] || keys['ArrowUp']) camera.position.addScaledVector(forward, speed);
     if(keys['KeyS'] || keys['ArrowDown']) camera.position.addScaledVector(forward, -speed);
     if(keys['KeyA'] || keys['ArrowLeft']) camera.position.addScaledVector(right, -speed);
     if(keys['KeyD'] || keys['ArrowRight']) camera.position.addScaledVector(right, speed);
 
-    // stick to planet surface
     camera.position.setLength(radius);
     camera.up.copy(gravity);
 
-    // rotate camera slightly using mouse yaw/pitch
-    const lookDir = forward.clone();
-    lookDir.applyAxisAngle(right, pitch);
-    lookDir.applyAxisAngle(gravity, yaw);
-    camera.lookAt(camera.position.clone().add(lookDir));
+    const gravityNorm = gravity.clone().normalize();
+    const tangent = new THREE.Vector3().crossVectors(gravityNorm, new THREE.Vector3(0,1,0)).normalize();
+    const rotation = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+    camera.lookAt(camera.position.clone().add(forward.applyEuler(rotation)));
 }
 
-// animate
 function animate() {
     requestAnimationFrame(animate);
     move();
