@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Mini Planet Walk</title>
+<title>Mini Planet Third-Person</title>
 <style>
   body { margin: 0; overflow: hidden; }
   canvas { display: block; cursor: grab; }
@@ -11,124 +11,127 @@
 <body>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
+// SCENE
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202030);
 
-// camera
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-
-// lights
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(10,10,10);
-scene.add(light);
-scene.add(new THREE.AmbientLight(0x555555));
-
-// planet
+// PLANET
 const planetRadius = 2;
 const planet = new THREE.Mesh(
-    new THREE.SphereGeometry(planetRadius, 32, 32),
-    new THREE.MeshStandardMaterial({ color: 0x55aaff })
+  new THREE.SphereGeometry(planetRadius, 32, 32),
+  new THREE.MeshStandardMaterial({ color: 0x55aaff })
 );
 scene.add(planet);
 
-// houses
+// LIGHTS
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(10, 10, 10);
+scene.add(light);
+scene.add(new THREE.AmbientLight(0x555555));
+
+// CHARACTER (кубик)
+const char = new THREE.Mesh(
+  new THREE.BoxGeometry(0.2,0.2,0.2),
+  new THREE.MeshStandardMaterial({ color: 0xff0000 })
+);
+scene.add(char);
+
+// HOUSES
 const houseGeometry = new THREE.BoxGeometry(0.15,0.15,0.15);
 const houseMaterials = [
-    new THREE.MeshStandardMaterial({ color: 0xffaa00 }),
-    new THREE.MeshStandardMaterial({ color: 0xaa44ff }),
-    new THREE.MeshStandardMaterial({ color: 0x44ff88 })
+  new THREE.MeshStandardMaterial({ color: 0xffaa00 }),
+  new THREE.MeshStandardMaterial({ color: 0xaa44ff }),
+  new THREE.MeshStandardMaterial({ color: 0x44ff88 })
 ];
 
 function addHouse(lat, lon, material) {
-    const radius = planetRadius + 0.1;
-    const x = radius * Math.sin(lat) * Math.cos(lon);
-    const y = radius * Math.cos(lat);
-    const z = radius * Math.sin(lat) * Math.sin(lon);
-    const house = new THREE.Mesh(houseGeometry, material);
-    house.position.set(x,y,z);
-    house.lookAt(0,0,0);
-    scene.add(house);
+  const radius = planetRadius + 0.1;
+  const x = radius * Math.sin(lat) * Math.cos(lon);
+  const y = radius * Math.cos(lat);
+  const z = radius * Math.sin(lat) * Math.sin(lon);
+  const house = new THREE.Mesh(houseGeometry, material);
+  house.position.set(x,y,z);
+  house.lookAt(0,0,0);
+  scene.add(house);
 }
 
-// add some houses
 addHouse(Math.PI/3,0,houseMaterials[0]);
 addHouse(Math.PI/2.2,1,houseMaterials[1]);
 addHouse(Math.PI/2.5,2,houseMaterials[2]);
 addHouse(Math.PI/1.8,-1,houseMaterials[0]);
 
-// camera parameters
-let radius = planetRadius + 0.5; // distance from planet
-let keys = {};
+// CAMERA
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-// keyboard input
+// CONTROLS
+let keys = {};
 document.addEventListener('keydown', e => keys[e.code] = true);
 document.addEventListener('keyup', e => keys[e.code] = false);
 
-// mouse rotation
 let mouseDown = false;
 let prevX = 0, prevY = 0;
-let yaw = 0, pitch = 0; // initial rotation
-
+let yaw = 0, pitch = 0;
 document.addEventListener('mousedown', e => { mouseDown=true; prevX=e.clientX; prevY=e.clientY; });
 document.addEventListener('mouseup', e => mouseDown=false);
 document.addEventListener('mousemove', e => {
-    if(!mouseDown) return;
-    const dx = (e.clientX-prevX)/200;
-    const dy = (e.clientY-prevY)/200;
-    yaw -= dx;
-    pitch -= dy;
-    pitch = Math.max(-Math.PI/2+0.01, Math.min(Math.PI/2-0.01, pitch));
-    prevX=e.clientX; prevY=e.clientY;
+  if(!mouseDown) return;
+  const dx = (e.clientX-prevX)/200;
+  const dy = (e.clientY-prevY)/200;
+  yaw -= dx;
+  pitch -= dy;
+  pitch = Math.max(-Math.PI/2+0.01, Math.min(Math.PI/2-0.01, pitch));
+  prevX=e.clientX; prevY=e.clientY;
 });
 
-// move function
+// CHARACTER POSITION
+let charRadius = planetRadius + 0.5;
+
+// MOVE FUNCTION
 function move() {
-    const gravity = camera.position.clone().normalize(); // vector to center
+  const gravity = char.position.clone().normalize();
+  const forward = new THREE.Vector3();
+  char.getWorldDirection(forward);
+  forward.projectOnPlane(gravity).normalize();
 
-    // forward tangent vector
-    const forward = new THREE.Vector3();
-    camera.getWorldDirection(forward);
-    forward.projectOnPlane(gravity).normalize();
+  const right = new THREE.Vector3().crossVectors(forward, gravity).normalize();
+  const speed = 0.02;
 
-    // right vector
-    const right = new THREE.Vector3().crossVectors(forward, gravity).normalize();
-    const speed = 0.2;
+  if(keys['KeyW'] || keys['ArrowUp']) char.position.addScaledVector(forward, speed);
+  if(keys['KeyS'] || keys['ArrowDown']) char.position.addScaledVector(forward, -speed);
+  if(keys['KeyA'] || keys['ArrowLeft']) char.position.addScaledVector(right, -speed);
+  if(keys['KeyD'] || keys['ArrowRight']) char.position.addScaledVector(right, speed);
 
-    if(keys['KeyW'] || keys['ArrowUp']) camera.position.addScaledVector(forward, speed);
-    if(keys['KeyS'] || keys['ArrowDown']) camera.position.addScaledVector(forward, -speed);
-    if(keys['KeyA'] || keys['ArrowLeft']) camera.position.addScaledVector(right, -speed);
-    if(keys['KeyD'] || keys['ArrowRight']) camera.position.addScaledVector(right, speed);
+  char.position.setLength(charRadius);
+  char.up.copy(gravity);
 
-    // keep on planet surface
-    camera.position.setLength(radius);
-    camera.up.copy(gravity);
+  // CAMERA third-person
+  const camOffset = new THREE.Vector3(0,0.5,1.2);
+  const yawQuat = new THREE.Quaternion().setFromAxisAngle(gravity, yaw);
+  const rightQuat = new THREE.Quaternion().setFromAxisAngle(right, pitch);
+  const totalQuat = new THREE.Quaternion().multiplyQuaternions(yawQuat, rightQuat);
+  camOffset.applyQuaternion(totalQuat);
 
-    // mouse look with quaternions
-    const yawQuat = new THREE.Quaternion().setFromAxisAngle(gravity, yaw);
-    const pitchQuat = new THREE.Quaternion().setFromAxisAngle(right, pitch);
-    const totalQuat = new THREE.Quaternion().multiplyQuaternions(yawQuat, pitchQuat);
-
-    const lookDir = new THREE.Vector3(0,0,-1).applyQuaternion(totalQuat);
-    camera.lookAt(camera.position.clone().add(lookDir));
+  camera.position.copy(char.position.clone().add(camOffset));
+  camera.lookAt(char.position);
 }
 
-// animate
+// ANIMATE
 function animate() {
-    requestAnimationFrame(animate);
-    move();
-    renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+  move();
+  renderer.render(scene, camera);
 }
 
 animate();
 
-// responsive
+// RESIZE
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth/window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
 </script>
 </body>
