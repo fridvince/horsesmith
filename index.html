@@ -1,86 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Walk on a Sphere</title>
-  <style>
-    body { margin: 0; overflow: hidden; }
-    canvas { display: block; }
-    #btn { position: absolute; top: 10px; left: 10px; z-index: 10; }
-  </style>
+<meta charset="utf-8">
+<title>Mini Planet Walk</title>
+<style>
+  body { margin: 0; overflow: hidden; }
+  canvas { display: block; cursor: grab; }
+</style>
 </head>
 <body>
-  <button id="btn">Click to Start</button>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/PointerLockControls.js"></script>
-  <script>
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x222244);
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x202030);
 
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer();
+// camera
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// lights
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(10,10,10);
+scene.add(light);
+scene.add(new THREE.AmbientLight(0x555555));
+
+// planet
+const planetRadius = 2;
+const planet = new THREE.Mesh(
+    new THREE.SphereGeometry(planetRadius, 32, 32),
+    new THREE.MeshStandardMaterial({ color: 0x55aaff })
+);
+scene.add(planet);
+
+// houses
+const houseGeometry = new THREE.BoxGeometry(0.15,0.15,0.15); // smaller for scale
+const houseMaterials = [
+    new THREE.MeshStandardMaterial({ color: 0xffaa00 }),
+    new THREE.MeshStandardMaterial({ color: 0xaa44ff }),
+    new THREE.MeshStandardMaterial({ color: 0x44ff88 })
+];
+
+function addHouse(lat, lon, material) {
+    const radius = planetRadius + 0.1;
+    const x = radius * Math.sin(lat) * Math.cos(lon);
+    const y = radius * Math.cos(lat);
+    const z = radius * Math.sin(lat) * Math.sin(lon);
+    const house = new THREE.Mesh(houseGeometry, material);
+    house.position.set(x,y,z);
+    house.lookAt(0,0,0);
+    scene.add(house);
+}
+
+// add some houses
+addHouse(Math.PI/3,0,houseMaterials[0]);
+addHouse(Math.PI/2.2,1,houseMaterials[1]);
+addHouse(Math.PI/2.5,2,houseMaterials[2]);
+addHouse(Math.PI/1.8,-1,houseMaterials[0]);
+
+// camera parameters
+let radius = planetRadius + 2.5; // closer to surface
+let keys = {};
+
+// keyboard input
+document.addEventListener('keydown', e => keys[e.code] = true);
+document.addEventListener('keyup', e => keys[e.code] = false);
+
+// mouse rotation
+let mouseDown = false;
+let prevX = 0, prevY = 0;
+let yaw = 0, pitch = -0; // look slightly down initially
+
+document.addEventListener('mousedown', e => { mouseDown=true; prevX=e.clientX; prevY=e.clientY; });
+document.addEventListener('mouseup', e => mouseDown=false);
+document.addEventListener('mousemove', e => {
+    if(!mouseDown) return;
+    const dx = (e.clientX-prevX)/200;
+    const dy = (e.clientY-prevY)/200;
+    yaw -= dx;
+    pitch -= dy;
+    pitch = Math.max(-Math.PI/2+0.01, Math.min(Math.PI/2-0.01, pitch));
+    prevX=e.clientX; prevY=e.clientY;
+});
+
+// move function
+function move() {
+    const gravity = camera.position.clone().normalize(); // vector from center
+
+    // tangent vectors
+    const forward = new THREE.Vector3();
+    forward.set(
+        -Math.sin(pitch) * Math.sin(yaw),
+        Math.cos(pitch),
+        -Math.sin(pitch) * Math.cos(yaw)
+    );
+    forward.projectOnPlane(gravity).normalize();
+
+    const right = new THREE.Vector3().crossVectors(forward, gravity).normalize();
+    const speed = 0.02;
+
+    if(keys['KeyW'] || keys['ArrowUp']) camera.position.addScaledVector(forward, speed);
+    if(keys['KeyS'] || keys['ArrowDown']) camera.position.addScaledVector(forward, -speed);
+    if(keys['KeyA'] || keys['ArrowLeft']) camera.position.addScaledVector(right, -speed);
+    if(keys['KeyD'] || keys['ArrowRight']) camera.position.addScaledVector(right, speed);
+
+    camera.position.setLength(radius); // stick to planet
+    camera.up.copy(gravity);
+
+    // calculate look direction
+    let lookDir = new THREE.Vector3(0,0,-1);
+    lookDir.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
+    lookDir.applyAxisAngle(right, pitch);
+    camera.lookAt(camera.position.clone().add(lookDir));
+}
+
+// animate
+function animate() {
+    requestAnimationFrame(animate);
+    move();
+    renderer.render(scene, camera);
+}
+
+animate();
+
+// responsive
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
-
-    // свет
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(10, 10, 10);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0x666666));
-
-    // создаём шар-планету
-    const sphereGeometry = new THREE.SphereGeometry(20, 64, 64);
-    const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0x55aaff });
-    const planet = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    scene.add(planet);
-
-    // помощник-ось, чтобы видеть центр
-    const axesHelper = new THREE.AxesHelper(30);
-    scene.add(axesHelper);
-
-    // контроллер
-    const controls = new THREE.PointerLockControls(camera, document.body);
-    document.getElementById('btn').addEventListener('click', () => controls.lock());
-
-    // стартовая позиция камеры (над поверхностью)
-    let radius = 30; // теперь подальше
-    let lat = Math.PI / 2;
-    let lon = 0;
-
-    function updateCameraPosition() {
-      const x = radius * Math.sin(lat) * Math.cos(lon);
-      const y = radius * Math.cos(lat);
-      const z = radius * Math.sin(lat) * Math.sin(lon);
-      camera.position.set(x, y, z);
-      camera.lookAt(0, 0, 0);
-    }
-
-    // движение
-    const keys = {};
-    document.addEventListener('keydown', (e) => keys[e.code] = true);
-    document.addEventListener('keyup', (e) => keys[e.code] = false);
-
-    function move() {
-      const speed = 0.02;
-      if (keys['KeyW']) lat -= speed;
-      if (keys['KeyS']) lat += speed;
-      if (keys['KeyA']) lon -= speed;
-      if (keys['KeyD']) lon += speed;
-    }
-
-    function animate() {
-      requestAnimationFrame(animate);
-      move();
-      updateCameraPosition();
-      renderer.render(scene, camera);
-    }
-    animate();
-
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-  </script>
+});
+</script>
 </body>
 </html>
