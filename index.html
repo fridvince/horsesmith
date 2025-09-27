@@ -5,7 +5,7 @@
 <title>Mini Planet Walk</title>
 <style>
   body { margin: 0; overflow: hidden; }
-  canvas { display: block; }
+  canvas { display: block; cursor: grab; }
 </style>
 </head>
 <body>
@@ -25,7 +25,7 @@ light.position.set(10,10,10);
 scene.add(light);
 scene.add(new THREE.AmbientLight(0x555555));
 
-// planet
+// small planet
 const planetRadius = 2;
 const planet = new THREE.Mesh(
     new THREE.SphereGeometry(planetRadius, 32, 32),
@@ -33,7 +33,7 @@ const planet = new THREE.Mesh(
 );
 scene.add(planet);
 
-// houses
+// mini houses
 const houseGeometry = new THREE.BoxGeometry(0.2,0.2,0.2);
 const houseMaterials = [
     new THREE.MeshStandardMaterial({ color: 0xffaa00 }),
@@ -58,22 +58,41 @@ addHouse(Math.PI/2.5,2,houseMaterials[2]);
 addHouse(Math.PI/1.8,-1,houseMaterials[0]);
 
 // camera on surface
-let radius = planetRadius + 3; // closer to surface
+let radius = planetRadius + 3; // zoom out a bit
 let lat = Math.PI/2;
 let lon = 0;
 
-// WASD keys
+// keys
 const keys = {};
 document.addEventListener('keydown', e => keys[e.code] = true);
 document.addEventListener('keyup', e => keys[e.code] = false);
 
+// optional: mouse rotation around player
+let mouseDown = false;
+let prevX = 0, prevY = 0;
+let yaw = 0, pitch = -0.5; // pitch negative to look slightly down
+
+document.addEventListener('mousedown', e => { mouseDown=true; prevX=e.clientX; prevY=e.clientY; });
+document.addEventListener('mouseup', e => mouseDown=false);
+document.addEventListener('mousemove', e => {
+    if(!mouseDown) return;
+    const dx = (e.clientX-prevX)/200;
+    const dy = (e.clientY-prevY)/200;
+    yaw -= dx;
+    pitch -= dy;
+    pitch = Math.max(-Math.PI/2+0.01, Math.min(Math.PI/2-0.01, pitch));
+    prevX=e.clientX; prevY=e.clientY;
+});
+
+// move function
 function move() {
     const gravity = camera.position.clone().normalize();
 
-    // forward & right vectors tangent to planet
+    // forward & right vectors
     const forward = new THREE.Vector3();
     camera.getWorldDirection(forward);
     forward.projectOnPlane(gravity).normalize();
+
     const right = new THREE.Vector3().crossVectors(forward, gravity).normalize();
     const speed = 0.02;
 
@@ -86,11 +105,14 @@ function move() {
     camera.position.setLength(radius);
     camera.up.copy(gravity);
 
-    // camera looks slightly downward
-    const lookDir = forward.clone().multiplyScalar(1).add(gravity.clone().multiplyScalar(-0.5));
+    // rotate camera slightly using mouse yaw/pitch
+    const lookDir = forward.clone();
+    lookDir.applyAxisAngle(right, pitch);  // this pitch tilts camera down
+    lookDir.applyAxisAngle(gravity, yaw);  // mouse rotation
     camera.lookAt(camera.position.clone().add(lookDir));
 }
 
+// animate
 function animate() {
     requestAnimationFrame(animate);
     move();
