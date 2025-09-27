@@ -58,7 +58,7 @@ addHouse(Math.PI/2.5,2,houseMaterials[2]);
 addHouse(Math.PI/1.8,-1,houseMaterials[0]);
 
 // camera on surface
-let radius = planetRadius + 3; // zoom out a bit
+let radius = planetRadius + 4; // zoom out a bit
 let lat = Math.PI/2;
 let lon = 0;
 
@@ -70,7 +70,7 @@ document.addEventListener('keyup', e => keys[e.code] = false);
 // optional: mouse rotation around player
 let mouseDown = false;
 let prevX = 0, prevY = 0;
-let yaw = 0, pitch = -0.5; // pitch negative to look slightly down
+let yaw = 0, pitch = -0.3; // pitch negative to look slightly down
 
 document.addEventListener('mousedown', e => { mouseDown=true; prevX=e.clientX; prevY=e.clientY; });
 document.addEventListener('mouseup', e => mouseDown=false);
@@ -107,8 +107,8 @@ function move() {
 
     // rotate camera slightly using mouse yaw/pitch
     const lookDir = forward.clone();
-    lookDir.applyAxisAngle(right, pitch);  // this pitch tilts camera down
-    lookDir.applyAxisAngle(gravity, yaw);  // mouse rotation
+    lookDir.applyAxisAngle(right, pitch);
+    lookDir.applyAxisAngle(gravity, yaw);
     camera.lookAt(camera.position.clone().add(lookDir));
 }
 
