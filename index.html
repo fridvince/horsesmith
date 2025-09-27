@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Walk on a Sphere</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    #btn { position: absolute; top: 10px; left: 10px; }
+  </style>
+</head>
+<body>
+  <button id="btn">Click to Start</button>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/PointerLockControls.js"></script>
+  <script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // lighting
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(5, 10, 7).normalize();
+    scene.add(light);
+
+    // environment
+    const sphereGeometry = new THREE.SphereGeometry(20, 64, 64);
+    const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0x55aaff, wireframe: false });
+    const planet = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    scene.add(planet);
+
+    // контроллер
+    const controls = new THREE.PointerLockControls(camera, document.body);
+    document.getElementById('btn').addEventListener('click', () => {
+      controls.lock();
+    });
+
+    // camera
+    let radius = 20.5; // position
+    let lat = Math.PI / 2; 
+    let lon = 0;
+
+    function updateCameraPosition() {
+      const x = radius * Math.sin(lat) * Math.cos(lon);
+      const y = radius * Math.cos(lat);
+      const z = radius * Math.sin(lat) * Math.sin(lon);
+      camera.position.set(x, y, z);
+      camera.lookAt(0, 0, 0);
+    }
+
+    // movement
+    const keys = {};
+    document.addEventListener('keydown', (e) => keys[e.code] = true);
+    document.addEventListener('keyup', (e) => keys[e.code] = false);
+
+    function move() {
+      const speed = 0.02;
+      if (keys['KeyW']) lat -= speed; // forward
+      if (keys['KeyS']) lat += speed; // back
+      if (keys['KeyA']) lon -= speed; // left
+      if (keys['KeyD']) lon += speed; // right
+    }
+
+    // motion
+    function animate() {
+      requestAnimationFrame(animate);
+      move();
+      updateCameraPosition();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
