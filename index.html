@@ -19,17 +19,20 @@
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
+  // освещение
   const light = new THREE.DirectionalLight(0xffffff, 1);
   light.position.set(20, 20, 20);
   scene.add(light);
   scene.add(new THREE.AmbientLight(0x555555));
 
+  // планета
   const planetRadius = 20;
   const planetGeometry = new THREE.SphereGeometry(planetRadius, 64, 64);
   const planetMaterial = new THREE.MeshStandardMaterial({ color: 0x55aaff });
   const planet = new THREE.Mesh(planetGeometry, planetMaterial);
   scene.add(planet);
 
+  // домики
   const houseGeometry = new THREE.BoxGeometry(2, 2, 2);
   const houseMaterials = [
     new THREE.MeshStandardMaterial({ color: 0xffaa00 }),
@@ -38,27 +41,30 @@
   ];
 
   function addHouse(lat, lon, material) {
-    const radius = planetRadius + 1;
+    const radius = planetRadius + 1; // чуть выше поверхности
     const x = radius * Math.sin(lat) * Math.cos(lon);
     const y = radius * Math.cos(lat);
     const z = radius * Math.sin(lat) * Math.sin(lon);
 
     const house = new THREE.Mesh(houseGeometry, material);
     house.position.set(x, y, z);
-    house.lookAt(0, 0, 0);
+    house.lookAt(0, 0, 0); // ориентируем на центр планеты
     scene.add(house);
   }
 
+  // создаём несколько домов
   addHouse(Math.PI/3, 0, houseMaterials[0]);
   addHouse(Math.PI/2.2, 1, houseMaterials[1]);
   addHouse(Math.PI/2.5, 2, houseMaterials[2]);
   addHouse(Math.PI/1.8, -1, houseMaterials[0]);
   addHouse(Math.PI/2.7, -2, houseMaterials[1]);
 
+  // стартовая позиция камеры на поверхности
   let radius = planetRadius + 2; 
   let lat = Math.PI/2; 
   let lon = 0;
 
+  // клавиши
   const keys = {};
   document.addEventListener('keydown', e => keys[e.code] = true);
   document.addEventListener('keyup', e => keys[e.code] = false);
@@ -66,12 +72,15 @@
   function move() {
     const speed = 0.02;
 
+    // вектор "вниз" от центра планеты
     const gravity = new THREE.Vector3().copy(camera.position).normalize();
 
+    // вперед = касательная к поверхности
     const forward = new THREE.Vector3();
     camera.getWorldDirection(forward);
     forward.projectOnPlane(gravity).normalize();
 
+    // право = перпендикуляр к forward и gravity
     const right = new THREE.Vector3().crossVectors(forward, gravity).normalize();
 
     if (keys['KeyW'] || keys['ArrowUp']) camera.position.addScaledVector(forward, speed);
@@ -79,10 +88,13 @@
     if (keys['KeyA'] || keys['ArrowLeft']) camera.position.addScaledVector(right, -speed);
     if (keys['KeyD'] || keys['ArrowRight']) camera.position.addScaledVector(right, speed);
 
+    // прилепляем обратно к поверхности планеты
     camera.position.setLength(radius);
 
+    // "верх" камеры = от центра планеты
     camera.up.copy(gravity);
 
+    // камера смотрит куда идёт
     camera.lookAt(camera.position.clone().add(forward));
   }
 
