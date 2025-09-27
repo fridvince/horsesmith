@@ -60,7 +60,7 @@ addHouse(Math.PI/2.5,2,houseMaterials[2]);
 addHouse(Math.PI/1.8,-1,houseMaterials[0]);
 
 // camera parameters
-let radius = planetRadius + 2.5; // distance from planet
+let radius = planetRadius + 0.5; // distance from planet
 let keys = {};
 
 // keyboard input
@@ -95,7 +95,7 @@ function move() {
 
     // right vector
     const right = new THREE.Vector3().crossVectors(forward, gravity).normalize();
-    const speed = 0.02;
+    const speed = 0.2;
 
     if(keys['KeyW'] || keys['ArrowUp']) camera.position.addScaledVector(forward, speed);
     if(keys['KeyS'] || keys['ArrowDown']) camera.position.addScaledVector(forward, -speed);
